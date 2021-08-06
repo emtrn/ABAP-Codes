@@ -1,0 +1,10 @@
+    DATA lv_string TYPE string.
+    DATA lv_passcode TYPE string.
+
+lv_passcode = '@dmin1q23e'.
+*Decode Base64 String to String
+    CALL METHOD cl_http_utility=>if_http_utility~encode_base64
+      EXPORTING
+        UNENCODED = lv_passcode
+      RECEIVING
+        encoded = lv_string.
