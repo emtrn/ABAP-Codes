@@ -1,0 +1,185 @@
+*&---------------------------------------------------------------------*
+*& Report  ZZZTEST1
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+REPORT ZZZTEST1.
+
+DATA : vl_fichier  TYPE string,
+       vl_filename TYPE localfile,
+       vl_donnees  TYPE string.
+DATA t_fichier_tmp TYPE TABLE OF string.
+vl_fichier = 'C:\temp\BackgroundOutside.xml'.
+CALL FUNCTION 'GUI_UPLOAD'
+  EXPORTING
+    filename                = vl_fichier
+  TABLES
+    data_tab                = t_fichier_tmp
+  EXCEPTIONS
+    file_open_error         = 1
+    file_read_error         = 2
+    no_batch                = 3
+    gui_refuse_filetransfer = 4
+    invalid_type            = 5
+    no_authority            = 6
+    unknown_error           = 7
+    bad_data_format         = 8
+    header_not_allowed      = 9
+    separator_not_allowed   = 10
+    header_too_long         = 11
+    unknown_dp_error        = 12
+    access_denied           = 13
+    dp_out_of_memory        = 14
+    disk_full               = 15
+    dp_timeout              = 16
+    OTHERS                  = 17.
+
+
+DATA : vl_str      TYPE string,
+       vl_xml_data TYPE xstring.
+
+DATA tl_return TYPE TABLE OF bapiret2.
+
+
+CLEAR : vl_str,
+        vl_xml_data.
+
+*vl_Str = '<feed><personel><ad>jack</ad><soyad>trtr</soyad></personel><personel><ad>ahmet</ad><soyad>karar</soyad></personel></feed>'.
+
+*READ TABLE t_fichier_tmp INTO DATA(ls_tmp) INDEX 1.
+LOOP AT t_fichier_tmp INTO DATA(ls_tmp).
+  CONCATENATE vl_str ls_tmp INTO vl_str.
+ENDLOOP.
+*vl_str = ls_tmp.
+CONDENSE vl_str.
+*Conversion string to xstring
+CALL FUNCTION 'SCMS_STRING_TO_XSTRING'
+  EXPORTING
+    text   = vl_str
+  IMPORTING
+    buffer = vl_xml_data
+  EXCEPTIONS
+    failed = 1
+    OTHERS = 2.
+IF sy-subrc NE 0.
+*Erreur conversion du fichier XML en format XSTRING
+*    MESSAGE i020(0d) DISPLAY LIKE c_msgty_e WITH text-t01.
+*    LEAVE LIST-PROCESSING.
+ENDIF.
+
+*Conversion des données en table XML
+DATA t_fichier_xml TYPE TABLE OF smum_xmltb.
+CALL FUNCTION 'SMUM_XML_PARSE'
+  EXPORTING
+    xml_input = vl_xml_data
+  TABLES
+    xml_table = t_fichier_xml
+    return    = tl_return
+  EXCEPTIONS
+    OTHERS    = 0.
+
+TYPES : BEGIN OF t_intern,
+          fromDate(30),
+          country(30),
+          city(30),
+          contractType(30),
+          employer(30),
+          funcArea(30),
+          backgroundElementId(30),
+          industry(30),
+          title(30),
+          userId(30),
+          thruDate(30),
+        END OF t_intern.
+DATA lt_intern TYPE TABLE OF t_intern.
+DATA ls_intern TYPE t_intern.
+DATA lt_userId TYPE TABLE OF t_intern.
+
+LOOP AT t_fichier_xml INTO DATA(ls_xml).
+  IF sy-tabix = 1.
+    CONTINUE.
+  ENDIF.
+
+  IF ls_xml-hier = 2 AND ls_xml-cname = 'Background_OutsideWorkExperience'.
+    APPEND ls_intern TO lt_intern.
+    CLEAR ls_intern.
+    CONTINUE.
+  ENDIF.
+
+  IF ls_xml-hier = 3 .
+    IF ls_xml-type = 'V'.
+      CASE ls_xml-cname.
+        WHEN 'fromDate'.
+          ls_intern-fromDate = ls_xml-cvalue.
+        WHEN 'country'.
+          ls_intern-country = ls_xml-cvalue.
+        WHEN 'city'.
+          ls_intern-city = ls_xml-cvalue.
+        WHEN 'contractType'.
+          ls_intern-contractType = ls_xml-cvalue.
+        WHEN 'employer'.
+          ls_intern-employer = ls_xml-cvalue.
+        WHEN 'funcArea'.
+          ls_intern-funcArea = ls_xml-cvalue.
+        WHEN 'backgroundElementId'.
+          ls_intern-backgroundElementId = ls_xml-cvalue.
+        WHEN 'industry'.
+          ls_intern-industry = ls_xml-cvalue.        
+        WHEN 'title'.
+          ls_intern-title = ls_xml-cvalue.
+        WHEN 'userId'.
+          ls_intern-userId = ls_xml-cvalue.
+        WHEN 'thruDate'.
+          ls_intern-thruDate = ls_xml-cvalue.
+
+      ENDCASE.
+
+
+    ENDIF.
+
+  ENDIF.
+ENDLOOP.
+APPEND ls_intern TO lt_intern.
+
+
+lt_userId = lt_intern.
+sort lt_userId by userId.
+delete ADJACENT DUPLICATES FROM lt_userId COMPARING userId.
+
+DATA lv_tabix TYPE sy-tabix.
+DATA lt_intern_tmp TYPE TABLE OF t_intern.
+DATA lt_same TYPE TABLE OF t_intern.
+lt_intern_tmp = lt_intern.
+
+
+sort lt_intern by userId fromDate city contractType employer funcArea backgroundElementId industry kocCompany title thruDate.
+LOOP AT lt_userId INTO DATA(ls_userid).
+  READ TABLE lt_intern INTO DATA(ls_intern_tmp) WITH KEY userId = ls_userid-userId BINARY SEARCH.
+  IF sy-subrc = 0.
+    lv_tabix = sy-tabix + 1.
+    LOOP AT lt_intern INTO ls_intern FROM lv_tabix.
+      IF ls_intern-userId ne ls_userid-userId.
+        exit.
+      ENDIF.
+
+    IF ls_intern-fromDate = ls_intern_tmp-fromDate
+   AND ls_intern-city = ls_intern_tmp-city
+   AND ls_intern-contractType = ls_intern_tmp-contractType
+   AND ls_intern-employer = ls_intern_tmp-employer
+   AND ls_intern-funcArea = ls_intern_tmp-funcArea
+   AND ls_intern-industry = ls_intern_tmp-industry
+   AND ls_intern-kocCompany = ls_intern_tmp-kocCompany
+   AND ls_intern-title = ls_intern_tmp-title
+   AND ls_intern-thruDate = ls_intern_tmp-thruDate.
+
+      APPEND ls_intern_tmp to lt_same.
+    ENDIF.
+
+    ls_intern_tmp = ls_intern.
+
+    ENDLOOP.
+  ENDIF.
+ENDLOOP.
+BREAK-POINT.
