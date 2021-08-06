@@ -154,7 +154,7 @@ DATA lt_same TYPE TABLE OF t_intern.
 lt_intern_tmp = lt_intern.
 
 
-sort lt_intern by userId fromDate city contractType employer funcArea backgroundElementId industry kocCompany title thruDate.
+sort lt_intern by userId fromDate city contractType employer funcArea backgroundElementId industry title thruDate.
 LOOP AT lt_userId INTO DATA(ls_userid).
   READ TABLE lt_intern INTO DATA(ls_intern_tmp) WITH KEY userId = ls_userid-userId BINARY SEARCH.
   IF sy-subrc = 0.
@@ -170,7 +170,6 @@ LOOP AT lt_userId INTO DATA(ls_userid).
    AND ls_intern-employer = ls_intern_tmp-employer
    AND ls_intern-funcArea = ls_intern_tmp-funcArea
    AND ls_intern-industry = ls_intern_tmp-industry
-   AND ls_intern-kocCompany = ls_intern_tmp-kocCompany
    AND ls_intern-title = ls_intern_tmp-title
    AND ls_intern-thruDate = ls_intern_tmp-thruDate.
 
