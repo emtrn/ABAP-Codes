@@ -1,0 +1,22 @@
+FORM before_save_hrcon7 .
+  DATA ls_hrcon7 TYPE z_v_hrcon7.
+  DATA lv_cnt TYPE i.
+
+  LOOP AT total.
+
+    CHECK <vim_total_struc> IS ASSIGNED.
+
+    ls_hrcon7 = CORRESPONDING #( <vim_total_struc> ).
+    IF ls_hrcon7-deflthour = 'X'.
+      add 1 to lv_cnt.
+    ENDIF.
+
+  ENDLOOP.
+
+  IF lv_cnt gt 1.
+    vim_abort_saving = 'X'.
+    MESSAGE 'Please select only one default hour option !'(001)
+    TYPE 'I' DISPLAY LIKE 'E'.
+  ENDIF.
+
+ENDFORM.
